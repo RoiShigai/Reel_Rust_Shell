@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+	"shell",
+	"cat",
+]
+
+resolver = "3"
