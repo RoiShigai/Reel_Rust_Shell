@@ -1,6 +1,6 @@
 use std::io::Write;
 mod shell_core;
-use crate::shell_core::shell_core::ShellCore;
+use crate::shell_core::ShellCore;
 
 fn main() {
     let mut shell = ShellCore::new();
