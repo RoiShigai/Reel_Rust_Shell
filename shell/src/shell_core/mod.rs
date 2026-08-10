@@ -10,6 +10,9 @@ use std::{
     os::unix::ffi::{OsStrExt},
 };
 
+mod shell_conf;
+use crate::shell_core::shell_conf::ShellConfig;
+
 #[derive(Debug)]
 pub struct InputCommand {
     args: Vec<String>,
@@ -31,10 +34,10 @@ impl InputCommand {
     }
 }
 
-
 pub struct ShellCore {
     command_lst: Vec<InputCommand>,
     conf: HashMap<OsString, OsString>,
+    shell_config: ShellConfig,
 }
 
 impl ShellCore {
@@ -43,10 +46,11 @@ impl ShellCore {
         ShellCore{
             command_lst: Vec::new(),
             conf: config_keys,
+            shell_config: ShellConfig::new(),
         }
     }
 
-    pub fn process_input(&mut self, input: &str) {
+    pub fn process_input(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
         let cmd_token = input.split("|");
         println!("tokenized:");
         for cmd in cmd_token {
@@ -59,8 +63,9 @@ impl ShellCore {
             );
             println!("command_lst: {:?}", self.command_lst);
         }
-        self.execute();
+        self.execute()?;
         self.command_lst.clear();
+        Ok(())
     }
 
     fn find_executable(&self, program: &String) -> Option<PathBuf> {
@@ -73,17 +78,6 @@ impl ShellCore {
             }
         }
         None
-    }
-
-    fn get_c_env(&self) -> Result<Vec<CString>, Box<dyn std::error::Error>> {
-        self.conf.iter().map(|(key, value)| {
-            let mut env = key.as_os_str().as_bytes().to_vec();
-            env.push(b'=');
-            env.extend_from_slice(
-                value.as_os_str().as_bytes()
-            );
-            Ok(CString::new(env)?)
-        }).collect()
     }
 
     fn execute(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -103,14 +97,11 @@ impl ShellCore {
                     waitpid(child, None)?;
                 }
                 ForkResult::Child => {
-                    let env_string = self.get_c_env()?;
+                    let env_string = self.shell_config.get_c_env()?;
                     let env: Vec<&CStr> = env_string.iter().map(
                         |var| var.as_c_str()
                     ).collect();
-                    if let Err(err) = execve(&exec_cstr, &command.argv(), &env) {
-                        eprint!("{}: {}", command.get_exec(), err);
-                        std::process::exit(127);
-                    };
+                    execve(&exec_cstr, &command.argv(), &env)?;
                 }
             }
         }
