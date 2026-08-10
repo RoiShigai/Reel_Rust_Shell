@@ -4,48 +4,25 @@ use nix::{
 };
 
 use std::{
-    collections::HashMap,
-    ffi::{OsString, CStr, CString},
+    ffi::{CStr, CString},
     path::PathBuf,
     os::unix::ffi::{OsStrExt},
 };
 
 mod shell_conf;
+mod shell_parser;
 use crate::shell_core::shell_conf::ShellConfig;
-
-#[derive(Debug)]
-pub struct InputCommand {
-    args: Vec<String>,
-}
-
-impl InputCommand {
-    pub fn argv(&self) -> Vec<CString>{
-        self.args
-            .iter()
-            .map(
-            |arg| CString::new(
-                arg.as_str()
-            )).collect::<Result<_, _>>()
-            .expect("Failed to convert args into C string")
-    }
-
-    pub fn get_exec(&self) -> &String {
-        &self.args[0]
-    }
-}
+use crate::shell_core::shell_parser::{ShellParser, InputCommand};
 
 pub struct ShellCore {
     command_lst: Vec<InputCommand>,
-    conf: HashMap<OsString, OsString>,
     shell_config: ShellConfig,
 }
 
 impl ShellCore {
     pub fn  new() -> ShellCore {
-        let config_keys = std::env::vars_os().collect();
         ShellCore{
             command_lst: Vec::new(),
-            conf: config_keys,
             shell_config: ShellConfig::new(),
         }
     }
@@ -69,7 +46,7 @@ impl ShellCore {
     }
 
     fn find_executable(&self, program: &String) -> Option<PathBuf> {
-        let path = self.conf.get(&OsString::from("PATH"))?;
+        let path = self.shell_config.return_exec_path()?;
 
         for directory in std::env::split_paths(path) {
             let candidate = directory.join(program);

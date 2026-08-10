@@ -1,7 +1,5 @@
 use std::{
-    collections::HashMap,
-    ffi::{OsString, CString},
-    os::unix::ffi::{OsStrExt},
+    collections::HashMap, ffi::{CString, OsString}, os::unix::ffi::OsStrExt
 };
 
 pub struct ShellConfig {
@@ -14,6 +12,11 @@ impl ShellConfig {
         ShellConfig {
             env: env_keys,
         }        
+    }
+
+    pub fn return_exec_path(&self) -> Option<&OsString> {
+        let exec_path = self.env.get(&OsString::from("PATH"));
+        exec_path
     }
 
     pub fn get_c_env(&self) -> Result<Vec<CString>, Box<dyn std::error::Error>> {
