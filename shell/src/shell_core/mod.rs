@@ -9,6 +9,7 @@ use std::{
     os::unix::ffi::{OsStrExt},
 };
 
+mod executor;
 mod shell_conf;
 mod parser;
 use parser::{input_commands::InputCommand};

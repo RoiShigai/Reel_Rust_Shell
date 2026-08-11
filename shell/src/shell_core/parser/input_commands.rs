@@ -2,6 +2,48 @@ use std::{
     ffi::{CString},
     path::{PathBuf},
 };
+
+use crate::shell_core::parser::{
+    lexer::Token,
+    shell_parser::ParseError,
+};
+
+#[derive(Debug, PartialEq)]
+pub enum CommandOperator {
+    Or,
+    And,
+    Sequence,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct CommandGroup {
+    pub command: Vec<InputCommand>,
+    pub next: Option<CommandOperator>,
+}
+
+impl CommandGroup {
+    pub fn new() -> Self {
+        CommandGroup {
+            command: Vec::new(),
+            next: None,
+        }
+    }
+
+    pub fn set_operator(&mut self, token: Token) -> Result<(), ParseError> {
+        match token {
+            Token::Or => self.next = Some(CommandOperator::Or),
+            Token::And => self.next = Some(CommandOperator::And),
+            Token::Sequence => self.next = Some(CommandOperator::Sequence),
+            _ => return Err(ParseError::UnexpectedToken),
+        }
+        Ok(())
+    }
+
+    pub fn add_command(&mut self, command: InputCommand) {
+        self.command.push(command);
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Input {
     Inherit,

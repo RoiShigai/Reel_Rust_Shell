@@ -1,6 +1,11 @@
 use crate::shell_core::parser::{
     lexer::{ShellLexer, Token},
-    input_commands::{InputCommand, Input, Output},
+    input_commands::{
+        CommandGroup,
+        InputCommand,
+        Input,
+        Output
+    },
 };
 
 use std::{
@@ -39,9 +44,10 @@ impl ShellParser {
 
     pub fn parse_user_command(
         mut self,
-    user_input: &str) -> Result<Vec<InputCommand>, ParseError> {
+    user_input: &str) -> Result<Vec<CommandGroup>, ParseError> {
         let tokens = ShellLexer::tokenize_input(user_input);
         let mut command_lst = Vec::new();
+        let mut commandgroup = CommandGroup::new();
         let mut command = InputCommand::new();
         for token in tokens {
             match (&self.state, token) {
@@ -51,9 +57,6 @@ impl ShellParser {
                 },
                 (ParserState::Arg, Token::Word(word)) => {
                     command.args.push(String::from(word));
-                },
-                (ParserState::Command, Token::FileIN) => {
-                    self.state = ParserState::ExpectIn;
                 },
                 (ParserState::Arg, Token::FileIN) => {
                     self.state = ParserState::ExpectIn;
@@ -96,9 +99,24 @@ impl ShellParser {
                         return Err(ParseError::PipeFromNoProgram)
                     }
                     command.stdout = Output::Pipe;
-                    command_lst.push(command);
+                    commandgroup.add_command(command);
                     command = InputCommand::new();
                     command.stdin = Input::Pipe;
+                    self.state = ParserState::Command;
+                },
+                (ParserState::Arg, token @ (
+                    Token::And 
+                    | Token::Or 
+                    | Token::Sequence)) => {
+                    if !matches!(command.stdout, Output::Inherit) 
+                    | matches!(command.stdin, Input::File(_)) {
+                        return Err(ParseError::InvalidRedirection);
+                    }
+                    commandgroup.add_command(command);
+                    commandgroup.set_operator(token)?; 
+                    command_lst.push(commandgroup);
+                    command = InputCommand::new();
+                    commandgroup = CommandGroup::new();
                     self.state = ParserState::Command;
                 },
                 _ => return Err(ParseError::UnexpectedToken),
@@ -115,7 +133,8 @@ impl ShellParser {
         if command.program.is_empty() {
             return Err(ParseError::ProgramIsEmpty);
         }
-        command_lst.push(command);
+        commandgroup.add_command(command);
+        command_lst.push(commandgroup);
         Ok(command_lst)
     }
 }
@@ -123,11 +142,12 @@ impl ShellParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shell_core::parser::input_commands::CommandOperator;
 
     #[test]
     fn basic_test_01() {
         let parser = ShellParser::new();
-        let res_cmd = vec![
+        let input = vec![
             InputCommand{
                 program: "cat".to_string(),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
@@ -135,20 +155,32 @@ mod tests {
                 stdout: Output::Inherit
             }
         ];
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command("cat -e test")
             .unwrap(); 
-        assert_eq!(result, res_cmd);
+        assert_eq!(result, expected);
     }
     #[test]
     fn basic_test_02() {
         let parser = ShellParser::new();
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec![],
                 stdin: Input::Inherit,
                 stdout: Output::Inherit,
+            }
+        ];
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
             }
         ];
         let result = parser
@@ -159,7 +191,7 @@ mod tests {
     #[test]
     fn basic_test_03() {
         let parser = ShellParser::new();
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "echo".to_string(),
                 args: vec![
@@ -168,6 +200,12 @@ mod tests {
                 ],
                 stdin: Input::Inherit,
                 stdout: Output::Inherit,
+            }
+        ];
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
             }
         ];
         let result = parser
@@ -179,7 +217,7 @@ mod tests {
     fn redirect_input_01() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec![],
@@ -187,7 +225,12 @@ mod tests {
                 stdout: Output::Inherit,
             }
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command("cat < input.txt")
             .unwrap();
@@ -198,7 +241,7 @@ mod tests {
     fn redirect_output_01() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec![],
@@ -206,7 +249,12 @@ mod tests {
                 stdout: Output::File("output.txt".into()),
             }
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command("cat > output.txt")
             .unwrap();
@@ -217,7 +265,7 @@ mod tests {
     fn redirect_append_01() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec![],
@@ -225,7 +273,12 @@ mod tests {
                 stdout: Output::AppendFile("output.txt".into()),
             }
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command("cat >> output.txt")
             .unwrap();
@@ -236,7 +289,7 @@ mod tests {
     fn redirect_output_02() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec![
@@ -247,7 +300,12 @@ mod tests {
                 stdout: Output::File("output.txt".into()),
             }
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command(
                 "cat -n input.txt > output.txt"
@@ -260,7 +318,7 @@ mod tests {
     fn pipe_01() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec![
@@ -278,7 +336,12 @@ mod tests {
                 stdout: Output::Inherit,
             },
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command(
                 "cat file.txt | grep hello"
@@ -291,7 +354,7 @@ mod tests {
     fn pipe_02() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec!["file.txt".to_string()],
@@ -311,7 +374,12 @@ mod tests {
                 stdout: Output::Inherit,
             },
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command(
                 "cat file.txt | grep hello | wc -l"
@@ -324,7 +392,7 @@ mod tests {
     fn pipe_redirect_01() {
         let parser = ShellParser::new();
 
-        let expected = vec![
+        let input = vec![
             InputCommand {
                 program: "cat".to_string(),
                 args: vec!["file.txt".to_string()],
@@ -340,13 +408,129 @@ mod tests {
                 ),
             },
         ];
-
+        let expected = vec![
+            CommandGroup {
+                command: input,
+                next: None,
+            }
+        ];
         let result = parser
             .parse_user_command(
                 "cat file.txt | grep hello > result.txt"
             )
             .unwrap();
 
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn basic_group_01() {
+        let parser = ShellParser::new();
+        let input_1 = vec![
+            InputCommand{
+                program: "cat".to_string(),
+                args: Vec::from(["-e".to_string(), "test".to_string()]),
+                stdin: Input::Inherit,
+                stdout: Output::Inherit
+            }
+        ];
+        let input_2 = vec![
+            InputCommand {
+                program: "echo".to_string(),
+                args: vec![
+                    "hello".to_string(),
+                    "world".to_string(),
+                ],
+                stdin: Input::Inherit,
+                stdout: Output::Inherit,
+            }
+        ];
+        let expected = vec![
+            CommandGroup {
+                command: input_1,
+                next: Some(CommandOperator::Or),
+            },
+            CommandGroup {
+                command: input_2,
+                next: None,
+            }
+        ];
+        let result = parser
+            .parse_user_command("cat -e test || echo hello world")
+            .unwrap(); 
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn basic_group_02() {
+        let parser = ShellParser::new();
+        let input_1 = vec![
+            InputCommand{
+                program: "cat".to_string(),
+                args: Vec::from(["-e".to_string(), "test".to_string()]),
+                stdin: Input::Inherit,
+                stdout: Output::Inherit
+            }
+        ];
+        let input_2 = vec![
+            InputCommand {
+                program: "echo".to_string(),
+                args: vec![
+                    "hello".to_string(),
+                    "world".to_string(),
+                ],
+                stdin: Input::Inherit,
+                stdout: Output::Inherit,
+            }
+        ];
+        let expected = vec![
+            CommandGroup {
+                command: input_1,
+                next: Some(CommandOperator::And),
+            },
+            CommandGroup {
+                command: input_2,
+                next: None,
+            }
+        ];
+        let result = parser
+            .parse_user_command("cat -e test && echo hello world")
+            .unwrap(); 
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn basic_group_03() {
+        let parser = ShellParser::new();
+        let input_1 = vec![
+            InputCommand{
+                program: "cat".to_string(),
+                args: Vec::from(["-e".to_string(), "test".to_string()]),
+                stdin: Input::Inherit,
+                stdout: Output::Inherit
+            }
+        ];
+        let input_2 = vec![
+            InputCommand {
+                program: "echo".to_string(),
+                args: vec![
+                    "hello".to_string(),
+                    "world".to_string(),
+                ],
+                stdin: Input::Inherit,
+                stdout: Output::Inherit,
+            }
+        ];
+        let expected = vec![
+            CommandGroup {
+                command: input_1,
+                next: Some(CommandOperator::Sequence),
+            },
+            CommandGroup {
+                command: input_2,
+                next: None,
+            }
+        ];
+        let result = parser
+            .parse_user_command("cat -e test ; echo hello world")
+            .unwrap(); 
         assert_eq!(result, expected);
     }
     #[test]
@@ -411,16 +595,19 @@ mod tests {
     fn whitespace_01() {
         let parser = ShellParser::new();
 
-        let expected = vec![
-            InputCommand {
-                program: "cat".to_string(),
-                args: vec![
-                    "-e".to_string(),
-                    "test".to_string(),
-                ],
-                stdin: Input::Inherit,
-                stdout: Output::Inherit,
-            }
+        let input = InputCommand {
+            program: "cat".to_string(),
+            args: vec![
+                "-e".to_string(),
+                "test".to_string(),
+            ],
+            stdin: Input::Inherit,
+            stdout: Output::Inherit,
+        };
+        let expected = vec![CommandGroup {
+            command: vec![input],
+            next: None,
+        },
         ];
 
         let result = parser
