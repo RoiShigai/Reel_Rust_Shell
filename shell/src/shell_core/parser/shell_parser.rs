@@ -4,7 +4,6 @@ use crate::shell_core::parser::{
 };
 
 use std::{
-    ffi::{CString},
     path::{PathBuf},
 };
 
@@ -38,6 +37,7 @@ impl ShellParser {
         }
     }
 
+//"cat < file1 < file2"
     pub fn parse_user_command(
         mut self,
     user_input: &str) -> Result<Vec<InputCommand>, ParseError> {
@@ -60,7 +60,7 @@ impl ShellParser {
                     self.state = ParserState::ExpectIn;
                 },
                 (ParserState::ExpectIn, Token::Word(word)) => {
-                    if matches!(command.stdin, Input::Pipe) {
+                    if !matches!(command.stdin, Input::Inherit) {
                         return Err(ParseError::InvalidRedirection);
                     }
                     command.stdin = Input::File(
@@ -69,7 +69,7 @@ impl ShellParser {
                     self.state = ParserState::Arg;
                 },
                 (ParserState::Arg, Token::FileOUT) => {
-                    if matches!(command.stdout, Output::Inherit) {
+                    if !matches!(command.stdout, Output::Inherit) {
                         return Err(ParseError::InvalidRedirection);
                     }
                     self.state = ParserState::ExpectOut;
@@ -81,7 +81,7 @@ impl ShellParser {
                     self.state = ParserState::Arg;
                 },
                 (ParserState::Arg, Token::FileAppend) => {
-                    if matches!(command.stdout, Output::Inherit) {
+                    if !matches!(command.stdout, Output::Inherit) {
                         return Err(ParseError::InvalidRedirection);
                     }
                     self.state = ParserState::ExpectAppend;
