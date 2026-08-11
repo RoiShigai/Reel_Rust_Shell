@@ -37,7 +37,6 @@ impl ShellParser {
         }
     }
 
-//"cat < file1 < file2"
     pub fn parse_user_command(
         mut self,
     user_input: &str) -> Result<Vec<InputCommand>, ParseError> {
