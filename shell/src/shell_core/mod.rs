@@ -10,15 +10,23 @@ use std::{
 };
 
 mod shell_conf;
-mod shell_parser;
+mod parser;
+use parser::{input_commands::InputCommand};
 use crate::shell_core::shell_conf::ShellConfig;
-use crate::shell_core::shell_parser::{ShellParser, InputCommand};
 
 pub struct ShellCore {
     command_lst: Vec<InputCommand>,
     shell_config: ShellConfig,
 }
 
+
+//  fn is_executable(file: &Path) -> bool {
+//      let metadata = match metadata(file) {
+//          Ok(metadata) => metadata,
+//          Err(_) => return false,
+//      };
+//      metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
+//  }
 impl ShellCore {
     pub fn  new() -> ShellCore {
         ShellCore{
@@ -27,23 +35,23 @@ impl ShellCore {
         }
     }
 
-    pub fn process_input(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let cmd_token = input.split("|");
-        println!("tokenized:");
-        for cmd in cmd_token {
-            let args = cmd
-                .split_whitespace()
-                .map(String::from)
-                .collect();
-            self.command_lst.push(
-                InputCommand {args}
-            );
-            println!("command_lst: {:?}", self.command_lst);
-        }
-        self.execute()?;
-        self.command_lst.clear();
-        Ok(())
-    }
+//  pub fn process_input(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
+//      let cmd_token = input.split("|");
+//      println!("tokenized:");
+//      for cmd in cmd_token {
+//          let args = cmd
+//              .split_whitespace()
+//              .map(String::from)
+//              .collect();
+//          self.command_lst.push(
+//              InputCommand {args}
+//          );
+//          println!("command_lst: {:?}", self.command_lst);
+//      }
+//      self.execute()?;
+//      self.command_lst.clear();
+//      Ok(())
+//  }
 
     fn find_executable(&self, program: &String) -> Option<PathBuf> {
         let path = self.shell_config.return_exec_path()?;

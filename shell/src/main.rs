@@ -11,6 +11,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         std::io::stdin().read_line(&mut prompt).expect(
             "Failed to read line"
         );
-        shell.process_input(&prompt)?;
+//        shell.process_input(&prompt)?;
     }
 }
