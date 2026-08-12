@@ -1,11 +1,37 @@
 use std::{
     collections::HashMap,
-    ffi::{CString, OsString},
+    ffi::{CString, OsString, OsStr},
+    fmt,
+    error::Error,
     os::unix::ffi::OsStrExt
 };
 
 pub struct ShellConfig {
     env: HashMap<OsString, OsString>,
+}
+
+#[derive(Debug)]
+pub enum ConfigError<'a> {
+    EnvKeyNotFound(&'a str),
+    CommandNotFound,
+}
+
+impl fmt::Display for ConfigError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigError::EnvKeyNotFound(k) => write!(f, "Config Error: '{}' not found in Env", k),
+            ConfigError::CommandNotFound => write!(f, "Config Error: Command Not Found in Path"),
+        }
+    }
+}
+
+impl Error for ConfigError<'_> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            ConfigError::CommandNotFound => Some(&ConfigError::CommandNotFound),
+            _ => None
+        }
+    }
 }
 
 impl ShellConfig {
@@ -16,9 +42,26 @@ impl ShellConfig {
         }        
     }
 
-    pub fn return_exec_path(&self) -> Option<&OsString> {
-        let exec_path = self.env.get(&OsString::from("PATH"));
-        exec_path
+    pub fn build_path(&self, program_name: &OsStr) -> Result<OsString, ConfigError<'_>> {
+        match self.return_exec_path() {
+            Ok(path) => {
+                for directory in std::env::split_paths(path) {
+                    let candidate = directory.join(program_name);
+                    if candidate.is_file() {
+                        return Ok(OsString::from(candidate));
+                    }
+                }
+                Err(ConfigError::CommandNotFound)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn return_exec_path(&self) -> Result<&OsString, ConfigError<'_>> {
+        match self.env.get(&OsString::from("PATH")) {
+            Some(path) => Ok(path),
+            None => Err(ConfigError::EnvKeyNotFound("PATH".into())),
+        }
     }
 
     pub fn get_c_env(&self) -> Result<Vec<CString>, Box<dyn std::error::Error>> {

@@ -1,5 +1,5 @@
 use std::{
-    ffi::{CString},
+    ffi::{CString, OsString},
     path::{PathBuf},
 };
 
@@ -61,7 +61,7 @@ pub enum Output {
 
 #[derive(Debug, PartialEq)]
 pub struct InputCommand {
-   pub program: String,
+   pub program: OsString,
    pub args: Vec<String>,
    pub stdin: Input,
    pub stdout: Output,
@@ -70,7 +70,7 @@ pub struct InputCommand {
 impl InputCommand {
     pub fn new() -> Self {
         InputCommand {
-            program: String::new(),
+            program: OsString::new(),
             args: Vec::new(),
             stdin: Input::Inherit,
             stdout: Output::Inherit

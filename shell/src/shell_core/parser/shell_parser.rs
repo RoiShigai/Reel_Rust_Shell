@@ -9,7 +9,10 @@ use crate::shell_core::parser::{
 };
 
 use std::{
-    path::{PathBuf},
+    error::Error,
+    ffi::OsString,
+    fmt,
+    path::PathBuf
 };
 
 #[derive(Debug)]
@@ -19,6 +22,30 @@ pub enum ParseError {
     InvalidRedirection,
     PipeFromNoProgram,
     ProgramIsEmpty,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::InvalidRedirection => write!(f, "Parser Error: Invalid stream I/O in command"),
+            ParseError::MissingRedirectTarget => write!(f, "Parser Error: Missing target value for Stream Redirection"),
+            ParseError::UnexpectedToken => write!(f, "Parser Error: UnexpectedToken found in command"),
+            ParseError::ProgramIsEmpty => write!(f, "Parser Error: No program Extract from input"),
+            ParseError::PipeFromNoProgram => write!(f, "Parser Error: Pipe has no valid target"),
+        }
+    }
+}
+
+impl Error for ParseError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            ParseError::InvalidRedirection => Some(&ParseError::InvalidRedirection),
+            ParseError::MissingRedirectTarget => Some(&ParseError::MissingRedirectTarget),
+            ParseError::UnexpectedToken => Some(&ParseError::UnexpectedToken),
+            ParseError::ProgramIsEmpty => Some(&ParseError::ProgramIsEmpty),
+            ParseError::PipeFromNoProgram => Some(&ParseError::PipeFromNoProgram),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -52,7 +79,7 @@ impl ShellParser {
         for token in tokens {
             match (&self.state, token) {
                 (ParserState::Command, Token::Word(word)) => {
-                    command.program = String::from(word);
+                    command.program = OsString::from(word);
                     self.state = ParserState::Arg;
                 },
                 (ParserState::Arg, Token::Word(word)) => {
@@ -97,6 +124,9 @@ impl ShellParser {
                 (ParserState::Arg, Token::Pipe) => {
                     if command.program.is_empty() {
                         return Err(ParseError::PipeFromNoProgram)
+                    }
+                    if !matches!(command.stdout, Output::Inherit) {
+                        return Err(ParseError::InvalidRedirection);
                     }
                     command.stdout = Output::Pipe;
                     commandgroup.add_command(command);
@@ -149,7 +179,7 @@ mod tests {
         let parser = ShellParser::new();
         let input = vec![
             InputCommand{
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
                 stdout: Output::Inherit
@@ -171,7 +201,7 @@ mod tests {
         let parser = ShellParser::new();
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::Inherit,
                 stdout: Output::Inherit,
@@ -193,7 +223,7 @@ mod tests {
         let parser = ShellParser::new();
         let input = vec![
             InputCommand {
-                program: "echo".to_string(),
+                program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
                     "world".to_string(),
@@ -219,7 +249,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::File("input.txt".into()),
                 stdout: Output::Inherit,
@@ -243,7 +273,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::Inherit,
                 stdout: Output::File("output.txt".into()),
@@ -267,7 +297,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::Inherit,
                 stdout: Output::AppendFile("output.txt".into()),
@@ -291,7 +321,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec![
                     "-n".to_string(),
                     "input.txt".to_string(),
@@ -320,7 +350,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec![
                     "file.txt".to_string(),
                 ],
@@ -328,7 +358,7 @@ mod tests {
                 stdout: Output::Pipe,
             },
             InputCommand {
-                program: "grep".to_string(),
+                program: OsString::from("grep"),
                 args: vec![
                     "hello".to_string(),
                 ],
@@ -356,19 +386,19 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec!["file.txt".to_string()],
                 stdin: Input::Inherit,
                 stdout: Output::Pipe,
             },
             InputCommand {
-                program: "grep".to_string(),
+                program: OsString::from("grep"),
                 args: vec!["hello".to_string()],
                 stdin: Input::Pipe,
                 stdout: Output::Pipe,
             },
             InputCommand {
-                program: "wc".to_string(),
+                program: OsString::from("wc"),
                 args: vec!["-l".to_string()],
                 stdin: Input::Pipe,
                 stdout: Output::Inherit,
@@ -394,13 +424,13 @@ mod tests {
 
         let input = vec![
             InputCommand {
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: vec!["file.txt".to_string()],
                 stdin: Input::Inherit,
                 stdout: Output::Pipe,
             },
             InputCommand {
-                program: "grep".to_string(),
+                program: OsString::from("grep"),
                 args: vec!["hello".to_string()],
                 stdin: Input::Pipe,
                 stdout: Output::File(
@@ -427,7 +457,7 @@ mod tests {
         let parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
                 stdout: Output::Inherit
@@ -435,7 +465,7 @@ mod tests {
         ];
         let input_2 = vec![
             InputCommand {
-                program: "echo".to_string(),
+                program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
                     "world".to_string(),
@@ -464,7 +494,7 @@ mod tests {
         let parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
                 stdout: Output::Inherit
@@ -472,7 +502,7 @@ mod tests {
         ];
         let input_2 = vec![
             InputCommand {
-                program: "echo".to_string(),
+                program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
                     "world".to_string(),
@@ -501,7 +531,7 @@ mod tests {
         let parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
-                program: "cat".to_string(),
+                program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
                 stdout: Output::Inherit
@@ -509,7 +539,7 @@ mod tests {
         ];
         let input_2 = vec![
             InputCommand {
-                program: "echo".to_string(),
+                program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
                     "world".to_string(),
@@ -592,11 +622,22 @@ mod tests {
         assert!(result.is_err());
     }
     #[test]
+    fn syntax_error_07() {
+        let parser = ShellParser::new();
+
+        let result = parser
+            .parse_user_command(
+                "cat > file1 | grep hello"
+            );
+
+        assert!(result.is_err());
+    }
+    #[test]
     fn whitespace_01() {
         let parser = ShellParser::new();
 
         let input = InputCommand {
-            program: "cat".to_string(),
+            program: OsString::from("cat"),
             args: vec![
                 "-e".to_string(),
                 "test".to_string(),
