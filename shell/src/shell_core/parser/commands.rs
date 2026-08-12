@@ -60,16 +60,25 @@ pub enum Output {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum CommandType {
+    BuiltIn,
+    Executable,
+    Unknown
+}
+
+#[derive(Debug, PartialEq)]
 pub struct InputCommand {
-   pub program: OsString,
-   pub args: Vec<String>,
-   pub stdin: Input,
-   pub stdout: Output,
+    pub kind: CommandType,
+    pub program: OsString,
+    pub args: Vec<String>,
+    pub stdin: Input,
+    pub stdout: Output,
 }
 
 impl InputCommand {
     pub fn new() -> Self {
         InputCommand {
+            kind: CommandType::Unknown,
             program: OsString::new(),
             args: Vec::new(),
             stdin: Input::Inherit,

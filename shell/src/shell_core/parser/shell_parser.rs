@@ -1,6 +1,7 @@
 use crate::shell_core::parser::{
     lexer::{ShellLexer, Token},
     commands::{
+        CommandType,
         CommandGroup,
         InputCommand,
         Input,
@@ -179,6 +180,7 @@ mod tests {
         let parser = ShellParser::new();
         let input = vec![
             InputCommand{
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
@@ -201,6 +203,7 @@ mod tests {
         let parser = ShellParser::new();
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::Inherit,
@@ -223,6 +226,7 @@ mod tests {
         let parser = ShellParser::new();
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
@@ -249,6 +253,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::File("input.txt".into()),
@@ -273,6 +278,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::Inherit,
@@ -297,6 +303,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec![],
                 stdin: Input::Inherit,
@@ -321,6 +328,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec![
                     "-n".to_string(),
@@ -350,6 +358,7 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec![
                     "file.txt".to_string(),
@@ -358,6 +367,7 @@ mod tests {
                 stdout: Output::Pipe,
             },
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("grep"),
                 args: vec![
                     "hello".to_string(),
@@ -386,18 +396,21 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec!["file.txt".to_string()],
                 stdin: Input::Inherit,
                 stdout: Output::Pipe,
             },
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("grep"),
                 args: vec!["hello".to_string()],
                 stdin: Input::Pipe,
                 stdout: Output::Pipe,
             },
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("wc"),
                 args: vec!["-l".to_string()],
                 stdin: Input::Pipe,
@@ -424,12 +437,14 @@ mod tests {
 
         let input = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: vec!["file.txt".to_string()],
                 stdin: Input::Inherit,
                 stdout: Output::Pipe,
             },
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("grep"),
                 args: vec!["hello".to_string()],
                 stdin: Input::Pipe,
@@ -457,6 +472,7 @@ mod tests {
         let parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
@@ -465,6 +481,7 @@ mod tests {
         ];
         let input_2 = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
@@ -494,6 +511,7 @@ mod tests {
         let parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
@@ -502,6 +520,7 @@ mod tests {
         ];
         let input_2 = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
@@ -531,6 +550,7 @@ mod tests {
         let parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
+                kind: CommandType::Unknown,
                 program: OsString::from("cat"),
                 args: Vec::from(["-e".to_string(), "test".to_string()]),
                 stdin: Input::Inherit,
@@ -539,6 +559,7 @@ mod tests {
         ];
         let input_2 = vec![
             InputCommand {
+                kind: CommandType::Unknown,
                 program: OsString::from("echo"),
                 args: vec![
                     "hello".to_string(),
@@ -637,6 +658,7 @@ mod tests {
         let parser = ShellParser::new();
 
         let input = InputCommand {
+            kind: CommandType::Unknown,
             program: OsString::from("cat"),
             args: vec![
                 "-e".to_string(),
