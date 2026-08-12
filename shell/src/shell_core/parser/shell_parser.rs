@@ -1,6 +1,6 @@
 use crate::shell_core::parser::{
     lexer::{ShellLexer, Token},
-    input_commands::{
+    commands::{
         CommandGroup,
         InputCommand,
         Input,
@@ -142,7 +142,7 @@ impl ShellParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shell_core::parser::input_commands::CommandOperator;
+    use crate::shell_core::parser::commands::CommandOperator;
 
     #[test]
     fn basic_test_01() {

@@ -1,5 +1,7 @@
 use std::{
-    collections::HashMap, ffi::{CString, OsString}, os::unix::ffi::OsStrExt
+    collections::HashMap,
+    ffi::{CString, OsString},
+    os::unix::ffi::OsStrExt
 };
 
 pub struct ShellConfig {

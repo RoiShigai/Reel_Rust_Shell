@@ -1,3 +1,3 @@
-pub mod input_commands;
+pub mod commands;
 pub mod lexer;
 pub mod shell_parser;
