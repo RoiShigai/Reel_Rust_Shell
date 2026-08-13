@@ -1,6 +1,9 @@
 use crate::executor::executor::ExecError;
+use crate::file::file::FileMode;
 use crate::parser::commands::{CommandGroup, Input, Output};
 use crate::shell_config::shell_conf::ShellConfig;
+use crate::file::file::open_file;
+
 use std::os::fd::{AsRawFd, OwnedFd};
 use nix::{
     libc::{dup2, STDOUT_FILENO, STDIN_FILENO},
@@ -46,15 +49,15 @@ pub fn setup_stdout(
     match output {
         Output::Pipe => {
             let pipe = &streams[index];
-            dup2(pipe.write.as_raw_fd(), STDOUT_FILENO);
+            dup2(pipe.write.as_raw_fd(), STDOUT_FILENO)?;
         },
         Output::Inherit => {},
         Output::File(path) => {
-            let fd = open_file(path, FileMode::Write);
+            let fd = open_file(path.to_path_buf(), FileMode::Write)?;
             dup2(fd, STDOUT_FILENO)?;
         },
         Output::AppendFile(path) => {
-            let fd = open_file(path, FileMode::Append);
+            let fd = open_file(path.to_path_buf(), FileMode::Append)?;
             dup2(fd, STDOUT_FILENO);
         },
     };
@@ -73,7 +76,7 @@ pub fn setup_stdin(
         },
         Input::Inherit => {},
         Input::File(path) => {
-            let fd = open_file(path, FileMode::Read);
+            let fd = open_file(path.to_path_buf(), FileMode::Read)?;
             dup2(fd, STDIN_FILENO);
         },
     };

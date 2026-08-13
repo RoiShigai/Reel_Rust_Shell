@@ -1,6 +1,7 @@
 pub mod executor;
 pub mod shell_config;
 pub mod parser;
+pub mod file;
 use crate::shell_config::ShellConfig;
 
 pub struct ShellCore {

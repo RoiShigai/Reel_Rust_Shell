@@ -1,5 +1,6 @@
 use std::io::Write;
 mod parser;
+mod file;
 mod shell_config;
 mod executor;
 use crate::{

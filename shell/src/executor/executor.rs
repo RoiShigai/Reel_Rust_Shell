@@ -1,12 +1,16 @@
 use crate::{
+    executor::streams::{create_streams, setup_stdin, setup_stdout, CommandPipe},
+    file::file::FileError,
     parser::commands::{
-    InputCommand,
-    CommandOperator,
-    CommandGroup,
-    CommandType,
+        CommandGroup,
+        CommandOperator,
+        CommandType,
+        InputCommand
     },
-    shell_config::shell_conf::{ConfigError, ShellConfig},
-    executor::streams::{create_streams, CommandPipe, setup_stdin, setup_stdout},
+    shell_config::shell_conf::{
+        ConfigError,
+        ShellConfig
+    },
 };
 
 use std::{
@@ -34,6 +38,7 @@ pub enum ExecError {
     UnknownCommand,
     NixErrno(Errno),
     IOError(std::io::Error),
+    FileError(FileError),
 }
 
 impl fmt::Display for ExecError {
@@ -44,7 +49,8 @@ impl fmt::Display for ExecError {
             Self::UnknownCommand => write!(f, "Unknown Command Type"),
             Self::NixErrno(error) => write!(f,"Nix Error during Execution: '{}'", error),
             Self::IOError(error) => write!(f, "StdIO Error during Execution: '{}'", error),
-            Self::StdError(error) => write!(f, "StdError during Execution: '{}'", error)
+            Self::StdError(error) => write!(f, "StdError during Execution: '{}'", error),
+            Self::FileError(error) => write!(f, "FileError during execution: {}", error)
         }
     }
 }
