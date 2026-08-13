@@ -10,20 +10,30 @@ use crate::{
 };
 
 use std::{
-    error::Error, ffi::{CStr, CString, OsStr}, fmt, fs::metadata, os::unix::{
+    error::Error,
+    ffi::{CString, OsStr},
+    fmt,
+    fs::metadata,
+    os::unix::{
         ffi::OsStrExt,
         fs::PermissionsExt,
-    }, path::{Path, PathBuf}
+    },
+    path::{Path}
 };
 
 use nix::{
-    errno::Errno, sys::wait::waitpid, unistd::{execve, fork, ForkResult, Pid}
+    errno::Errno,
+    sys::wait::{waitpid, WaitStatus},
+    unistd::{execve, fork, ForkResult, Pid},
 };
 
 #[derive(Debug)]
 pub enum ExecError {
     FailedPipeCreation,
     InvalidPipeline,
+    UnknownCommand,
+    NixErrno(Errno),
+    IOError(std::io::Error),
 }
 
 impl fmt::Display for ExecError {
@@ -31,6 +41,10 @@ impl fmt::Display for ExecError {
         match self {
             Self::FailedPipeCreation => write!(f, "Failed To Create Pipe"),
             Self::InvalidPipeline => write!(f, "Invalid Pipeline"),
+            Self::UnknownCommand => write!(f, "Unknown Command Type"),
+            Self::NixErrno(error) => write!(f,"Nix Error during Execution: '{}'", error),
+            Self::IOError(error) => write!(f, "StdIO Error during Execution: '{}'", error),
+            Self::StdError(error) => write!(f, "StdError during Execution: '{}'", error)
         }
     }
 }
@@ -41,8 +55,8 @@ impl From<Errno> for ExecError {
     }
 }
 
-impl From<Error> for ExecError {
-    fn from(value: dyn Error) -> Self {
+impl From<&dyn Error> for ExecError {
+    fn from(value: &dyn Error) -> Self {
         ExecError::FailedPipeCreation
     }
 }
@@ -55,34 +69,6 @@ fn is_executable(file: &Path) -> bool {
     metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
 }
 
-
-//  fn execute(&mut self, &mut command_lst: Vec<CommandGroup>) -> Result<(), Box<dyn std::error::Error>> {
-//      for command in command_lst {
-//         let executable = self.find_executable(
-//              command.get_exec()
-//          ).ok_or_else(|| {
-//                  format!("{}: Command not found", command.get_exec())
-//              })?;
-//          let exec_cstr = CString::new(
-//              executable
-//                  .as_os_str()
-//                  .as_bytes()
-//          )?;
-//          match unsafe {fork()?} {
-//              ForkResult::Parent {child} => {
-//                  waitpid(child, None)?;
-//              }
-//              ForkResult::Child => {
-//                  let env_string = self.shell_config.get_c_env()?;
-//                  let env: Vec<&CStr> = env_string.iter().map(
-//                      |var| var.as_c_str()
-//                  ).collect();
-//                  execve(&exec_cstr, &command.argv(), &env)?;
-//              }
-//          }
-//      }
-//      Ok(())
-//  }
 fn check_builtin(command: &OsStr) -> CommandType {
     match command.to_str() {
         Some("cd") => CommandType::BuiltIn,
@@ -112,59 +98,98 @@ fn resolve_path(
     Ok(())
 }
 
+fn exec_child(
+    env: &mut ShellConfig,
+    command: &InputCommand,
+    streams: &[CommandPipe],
+    index: usize,
+) -> ! {
+
+    if let Err(error) =
+        setup_stdin(env, &command.stdin, streams, index)
+    {
+        eprintln!("stdin setup failed: {error}");
+        std::process::exit(1);
+    }
+
+    if let Err(error) =
+        setup_stdout(env, &command.stdout, streams, index)
+    {
+        eprintln!("stdout setup failed: {error}");
+        std::process::exit(1);
+    }
+
+    let c_env = match env.get_c_env() {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("environment error: {error}");
+            std::process::exit(1);
+        }
+    };
+
+    let c_exec = match CString::new(
+        command.program.as_os_str().as_bytes()
+    ) {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("invalid executable: {error}");
+            std::process::exit(1);
+        }
+    };
+    execve(&c_exec,&command.argv(),&c_env);
+    unreachable!();
+}
+
 fn exec_command(
     env: &mut ShellConfig,
-    command: InputCommand,
+    command: &InputCommand,
     streams: &[CommandPipe],
     index: usize) -> Result<Pid, ExecError>{
     
     match command.kind {
         CommandType::BuiltIn => {
-            todo()!;
+            todo!();
         }
         CommandType::Executable => {
-            match unsafe {fork()?; } {
-                ForkResult::Parent { child } => {
+            match unsafe {fork()? } {
+                ForkResult::Parent {child} => {
                     Ok(child)
                 },
-                ForkResult::Child => {
-                    if index > 0 {
-                        setup_stdin(env, &command.stdin, streams, index)?;
-                    }
-                    if index < streams.len() {
-                        setup_stdout(env, &command.stdout, streams, index)?;
-                    }
-                    let c_env = env.get_c_env()?;
-                    execve(
-                        &Cstring::new(command.program.as_os_str().as_bytes()),
-                        &command.argv(),
-                        &c_env
-                    );
-                    Ok(())
-                },
+                ForkResult::Child => exec_child(env, command, streams, index),
             }
         }
+        _ => {Err(ExecError::UnknownCommand)}
     }
 }
 
-fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<u8, Box<dyn Error>> {
+fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, Box<dyn Error>> {
     let streams = create_streams(group);
-    let children = Vec::new();
+    let mut children = Vec::new();
+    let mut last_status: i32 = 0;
 
     for (index, command) in group.command.iter().enumerate() {
-        let child = exec_command(env, command, streams, index)?;
+        let child = exec_command(env, command, &streams, index)?;
         children.push(child);
     }
+    drop(streams);
     for child in children {
-        waitpid(child, None);
+        match waitpid(child, None)? {
+            WaitStatus::Exited(_, status) => {
+                last_status = status;
+            }
+            WaitStatus::Signaled(_, signal, _) => {
+                last_status = 128 + signal as i32;
+            }
+            _ => {}
+        }
     }
-    Ok(0)
+    Ok(last_status)
 }
 
 fn execute_pipeline(
     env:&mut ShellConfig,
     command_list: &mut Vec<CommandGroup>) -> Result<(), Box<dyn Error + '_>> {
-    let mut last_status: u8 = 0;
+    let mut last_status: i32 = 0;
 
     resolve_path(env ,command_list)?;
     for group in command_list {
