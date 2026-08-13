@@ -1,7 +1,7 @@
-mod executor;
-mod shell_conf;
-mod parser;
-use crate::shell_core::shell_conf::ShellConfig;
+pub mod executor;
+pub mod shell_config;
+pub mod parser;
+use crate::shell_config::ShellConfig;
 
 pub struct ShellCore {
     shell_config: ShellConfig,
