@@ -6,7 +6,7 @@ use crate::{
     CommandType,
     },
     shell_config::shell_conf::{ConfigError, ShellConfig},
-    executor::streams::{create_streams, CommandPipe},
+    executor::streams::{create_streams, CommandPipe, setup_stdin, setup_stdout},
 };
 
 use std::{
@@ -17,9 +17,7 @@ use std::{
 };
 
 use nix::{
-    unistd::{execve, fork, ForkResult},
-    sys::wait::waitpid,
-    errno::Errno,
+    errno::Errno, sys::wait::waitpid, unistd::{execve, fork, ForkResult, Pid}
 };
 
 #[derive(Debug)]
@@ -42,6 +40,13 @@ impl From<Errno> for ExecError {
         ExecError::FailedPipeCreation
     }
 }
+
+impl From<Error> for ExecError {
+    fn from(value: dyn Error) -> Self {
+        ExecError::FailedPipeCreation
+    }
+}
+
 fn is_executable(file: &Path) -> bool {
     let metadata = match metadata(file) {
         Ok(metadata) => metadata,
@@ -107,10 +112,51 @@ fn resolve_path(
     Ok(())
 }
 
+fn exec_command(
+    env: &mut ShellConfig,
+    command: InputCommand,
+    streams: &[CommandPipe],
+    index: usize) -> Result<Pid, ExecError>{
+    
+    match command.kind {
+        CommandType::BuiltIn => {
+            todo()!;
+        }
+        CommandType::Executable => {
+            match unsafe {fork()?; } {
+                ForkResult::Parent { child } => {
+                    Ok(child)
+                },
+                ForkResult::Child => {
+                    if index > 0 {
+                        setup_stdin(env, &command.stdin, streams, index)?;
+                    }
+                    if index < streams.len() {
+                        setup_stdout(env, &command.stdout, streams, index)?;
+                    }
+                    let c_env = env.get_c_env()?;
+                    execve(
+                        &Cstring::new(command.program.as_os_str().as_bytes()),
+                        &command.argv(),
+                        &c_env
+                    );
+                    Ok(())
+                },
+            }
+        }
+    }
+}
+
 fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<u8, Box<dyn Error>> {
     let streams = create_streams(group);
-    for command in &group.command {
-        todo!();
+    let children = Vec::new();
+
+    for (index, command) in group.command.iter().enumerate() {
+        let child = exec_command(env, command, streams, index)?;
+        children.push(child);
+    }
+    for child in children {
+        waitpid(child, None);
     }
     Ok(0)
 }
