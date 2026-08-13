@@ -1,4 +1,4 @@
-use crate::shell_core::parser::{
+use crate::parser::{
     lexer::{ShellLexer, Token},
     commands::{
         CommandType,
@@ -71,7 +71,7 @@ impl ShellParser {
     }
 
     pub fn parse_user_command(
-        mut self,
+        &mut self,
     user_input: &str) -> Result<Vec<CommandGroup>, ParseError> {
         let tokens = ShellLexer::tokenize_input(user_input);
         let mut command_lst = Vec::new();
@@ -173,7 +173,7 @@ impl ShellParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shell_core::parser::commands::CommandOperator;
+    use crate::parser::commands::CommandOperator;
 
     #[test]
     fn basic_test_01() {

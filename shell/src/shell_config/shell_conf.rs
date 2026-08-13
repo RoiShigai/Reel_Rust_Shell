@@ -3,7 +3,7 @@ use std::{
     ffi::{CString, OsString, OsStr},
     fmt,
     error::Error,
-    os::unix::ffi::OsStrExt
+    os::unix::ffi::OsStrExt,
 };
 
 pub struct ShellConfig {

@@ -3,7 +3,7 @@ use std::{
     path::{PathBuf},
 };
 
-use crate::shell_core::parser::{
+use crate::parser::{
     lexer::Token,
     shell_parser::ParseError,
 };

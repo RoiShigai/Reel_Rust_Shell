@@ -1,31 +1,47 @@
-use crate::shell_core::{
+use crate::{
     parser::commands::{
     InputCommand,
     CommandOperator,
     CommandGroup,
     CommandType,
     },
-    ShellCore,
-    shell_conf::{ConfigError, ShellConfig},
+    shell_config::shell_conf::{ConfigError, ShellConfig},
+    executor::streams::{create_streams, CommandPipe},
 };
 
 use std::{
-    ffi::{OsStr, CStr, CString},
-    path::{PathBuf, Path},
-    fs::metadata,
-    os::unix::{
+    error::Error, ffi::{CStr, CString, OsStr}, fmt, fs::metadata, os::unix::{
         ffi::OsStrExt,
         fs::PermissionsExt,
-    },
-    error::Error,
+    }, path::{Path, PathBuf}
 };
 
 use nix::{
     unistd::{execve, fork, ForkResult},
     sys::wait::waitpid,
+    errno::Errno,
 };
 
+#[derive(Debug)]
+pub enum ExecError {
+    FailedPipeCreation,
+    InvalidPipeline,
+}
 
+impl fmt::Display for ExecError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FailedPipeCreation => write!(f, "Failed To Create Pipe"),
+            Self::InvalidPipeline => write!(f, "Invalid Pipeline"),
+        }
+    }
+}
+
+impl From<Errno> for ExecError {
+    fn from(_: Errno) -> Self {
+        ExecError::FailedPipeCreation
+    }
+}
 fn is_executable(file: &Path) -> bool {
     let metadata = match metadata(file) {
         Ok(metadata) => metadata,
@@ -78,7 +94,7 @@ fn resolve_path(
     command_list: &mut Vec<CommandGroup>) -> Result<(), ConfigError<'_>> {
     for commandgroup in command_list {
         for input_command in &mut commandgroup.command {
-            input_command.kind = Self::check_builtin(&input_command.program);
+            input_command.kind = check_builtin(&input_command.program);
             if input_command.kind == CommandType::Unknown {
                         input_command.program = match shell_config.build_path(
                         &input_command.program) {
@@ -90,13 +106,8 @@ fn resolve_path(
         }
     Ok(())
 }
-fn create_streams(groups: &CommandGroup) {
-    for command in groups.command {
-        match command.
-    }
-}
 
-fn exec_group(&mut env: Env, group: &CommandGroup) -> Result<u8, Box<dyn Error>> {
+fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<u8, Box<dyn Error>> {
     let streams = create_streams(group);
     for command in &group.command {
         todo!();
@@ -105,11 +116,11 @@ fn exec_group(&mut env: Env, group: &CommandGroup) -> Result<u8, Box<dyn Error>>
 }
 
 fn execute_pipeline(
-    &mut env,
+    env:&mut ShellConfig,
     command_list: &mut Vec<CommandGroup>) -> Result<(), Box<dyn Error + '_>> {
     let mut last_status: u8 = 0;
 
-    Self::resolve_path(&self.shell_config ,command_list)?;
+    resolve_path(env ,command_list)?;
     for group in command_list {
         let should_exec = match group.next {
             None => true,
@@ -122,7 +133,8 @@ fn execute_pipeline(
             }
         };
         if should_exec {
-            last_status = self.exec_group(group)?;
+            last_status = exec_group(env, group)?;
         }
     }
     Ok(())
+}
