@@ -4,10 +4,9 @@ use crate::parser::commands::{CommandGroup, Input, Output};
 use crate::shell_config::shell_conf::ShellConfig;
 use crate::file::file::open_file;
 
-use std::os::fd::{AsRawFd, OwnedFd};
+use std::os::fd::{AsFd, OwnedFd};
 use nix::{
-    libc::{dup2, STDOUT_FILENO, STDIN_FILENO},
-    unistd::pipe,
+    unistd::{pipe, dup2_stdin, dup2_stdout},
 };
 
 pub struct CommandPipe {
@@ -44,21 +43,21 @@ pub fn create_streams(groups: &CommandGroup) -> Result<Vec<CommandPipe>, ExecErr
 pub fn setup_stdout(
     env: &mut ShellConfig,
     output: &Output,
-    streams: &[CommandPipe],
+    streams: &Vec<CommandPipe>,
     index: usize) -> Result<(), ExecError> {
     match output {
         Output::Pipe => {
             let pipe = &streams[index];
-            dup2(pipe.write.as_raw_fd(), STDOUT_FILENO)?;
+            dup2_stdout(pipe.write.as_fd());
         },
         Output::Inherit => {},
         Output::File(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Write)?;
-            dup2(fd, STDOUT_FILENO)?;
+            dup2_stdout(fd);
         },
         Output::AppendFile(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Append)?;
-            dup2(fd, STDOUT_FILENO);
+            dup2_stdout(fd);
         },
     };
     Ok(())
@@ -67,17 +66,17 @@ pub fn setup_stdout(
 pub fn setup_stdin(
     env: &mut ShellConfig,
     input: &Input,
-    streams: &[CommandPipe],
+    streams: &Vec<CommandPipe>,
     index: usize) -> Result<(), ExecError>{
     match input {
         Input::Pipe => {
             let pipe = &streams[index - 1];
-            dup2(pipe.read.as_raw_fd(), STDIN_FILENO);
+            dup2_stdin(pipe.read.as_fd());
         },
         Input::Inherit => {},
         Input::File(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Read)?;
-            dup2(fd, STDIN_FILENO);
+            dup2_stdin(fd);
         },
     };
     Ok(())

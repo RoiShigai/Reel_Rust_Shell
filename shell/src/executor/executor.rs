@@ -61,6 +61,12 @@ impl From<Errno> for ExecError {
     }
 }
 
+impl From<FileError> for ExecError {
+    fn from(_: FileError) -> Self {
+        ExecError::FileError(FileError::PathError)
+    }
+}
+
 impl From<&dyn Error> for ExecError {
     fn from(value: &dyn Error) -> Self {
         ExecError::FailedPipeCreation
@@ -107,7 +113,7 @@ fn resolve_path(
 fn exec_child(
     env: &mut ShellConfig,
     command: &InputCommand,
-    streams: &[CommandPipe],
+    streams: &Vec<CommandPipe>,
     index: usize,
 ) -> ! {
 
@@ -149,7 +155,7 @@ fn exec_child(
 fn exec_command(
     env: &mut ShellConfig,
     command: &InputCommand,
-    streams: &[CommandPipe],
+    streams: &Vec<CommandPipe>,
     index: usize) -> Result<Pid, ExecError>{
     
     match command.kind {
@@ -169,7 +175,7 @@ fn exec_command(
 }
 
 fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, Box<dyn Error>> {
-    let streams = create_streams(group);
+    let streams = create_streams(group)?;
     let mut children = Vec::new();
     let mut last_status: i32 = 0;
 
