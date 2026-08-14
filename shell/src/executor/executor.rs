@@ -96,7 +96,10 @@ fn resolve_path(
             if input_command.kind == CommandType::Unknown {
                         input_command.program = match shell_config.build_path(
                         &input_command.program) {
-                        Ok(path) => path,
+                        Ok(path) => {
+                            input_command.kind = CommandType::Executable;
+                            path
+                        }
                         Err(e) => return Err(e),
                     };
                 }
@@ -143,7 +146,27 @@ fn exec_child(
             std::process::exit(1);
         }
     };
-    let _ = execve(&c_exec,&command.argv(),&c_env);
+    println!("Child - Exec");
+    println!("command: {:?}", command.program);
+    println!("argv: {:?}", command.argv());
+    let argv = match command.argv() {
+            Ok(argv) => argv,
+            Err(error) => {
+                eprintln!("shell: invalid arguments: {error}");
+                std::process::exit(1);
+            }
+        };
+    match execve(&c_exec, &argv, &c_env) {
+            Ok(never) => match never {},
+            Err(error) => {
+                eprintln!(
+                    "shell: failed to execute {}: {}",
+                    command.program.to_string_lossy(),
+                    error
+                );
+                std::process::exit(127);
+            }
+        };
     unreachable!();
 }
 
@@ -160,13 +183,13 @@ fn exec_command(
         CommandType::Executable => {
             match unsafe {fork()? } {
                 ForkResult::Parent {child} => {
+                    println!("OK - Pipe parent");
                     Ok(child)
                 },
                 ForkResult::Child => exec_child(env, command, streams, index),
             }
         }
         _ => {
-            println!("{:?}", command.kind);
             Err(ExecError::UnknownCommand)
         }
     }

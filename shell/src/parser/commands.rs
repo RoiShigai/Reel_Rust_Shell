@@ -1,5 +1,5 @@
 use std::{
-    ffi::{CString, OsString},
+    ffi::{CString, OsString, NulError},
     path::{PathBuf},
 };
 
@@ -70,7 +70,7 @@ pub enum CommandType {
 pub struct InputCommand {
     pub kind: CommandType,
     pub program: OsString,
-    pub args: Vec<String>,
+    pub args: Vec<OsString>,
     pub stdin: Input,
     pub stdout: Output,
 }
@@ -85,17 +85,14 @@ impl InputCommand {
             stdout: Output::Inherit
         }
     }
-    pub fn argv(&self) -> Vec<CString>{
-        self.args
-            .iter()
-            .map(
-            |arg| CString::new(
-                arg.as_str()
-            )).collect::<Result<_, _>>()
-            .expect("Failed to convert args into C string")
+    pub fn argv(&self) -> Result<Vec<CString>, NulError>{
+        std::iter::once(&self.program)
+            .chain(self.args.iter())
+            .map(|arg| CString::new(arg.as_os_str().as_encoded_bytes()))
+            .collect()
     }
 
-    pub fn get_exec(&self) -> &String {
+    pub fn get_exec(&self) -> &OsString {
         &self.args[0]
     }
 }

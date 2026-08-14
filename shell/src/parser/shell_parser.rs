@@ -83,7 +83,7 @@ impl ShellParser {
                     self.state = ParserState::Arg;
                 },
                 (ParserState::Arg, Token::Word(word)) => {
-                    command.args.push(String::from(word));
+                    command.args.push(OsString::from(word));
                 },
                 (ParserState::Arg, Token::FileIN) => {
                     self.state = ParserState::ExpectIn;
@@ -172,16 +172,16 @@ impl ShellParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::commands::CommandOperator;
+    use crate::parser::commands::{CommandOperator, CommandType};
 
     #[test]
     fn basic_test_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
         let input = vec![
             InputCommand{
                 kind: CommandType::Unknown,
                 program: OsString::from("cat"),
-                args: Vec::from(["-e".to_string(), "test".to_string()]),
+                args: Vec::from(["-e".to_ostring(), "test".to_string()]),
                 stdin: Input::Inherit,
                 stdout: Output::Inherit
             }
@@ -199,7 +199,7 @@ mod tests {
     }
     #[test]
     fn basic_test_02() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
         let input = vec![
             InputCommand {
                 kind: CommandType::Unknown,
@@ -222,7 +222,7 @@ mod tests {
     }
     #[test]
     fn basic_test_03() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
         let input = vec![
             InputCommand {
                 kind: CommandType::Unknown,
@@ -248,7 +248,7 @@ mod tests {
     }
     #[test]
     fn redirect_input_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -273,7 +273,7 @@ mod tests {
     }
     #[test]
     fn redirect_output_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -298,7 +298,7 @@ mod tests {
     }
     #[test]
     fn redirect_append_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -323,7 +323,7 @@ mod tests {
     }
     #[test]
     fn redirect_output_02() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -353,7 +353,7 @@ mod tests {
     }
     #[test]
     fn pipe_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -391,7 +391,7 @@ mod tests {
     }
     #[test]
     fn pipe_02() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -432,7 +432,7 @@ mod tests {
     }
     #[test]
     fn pipe_redirect_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = vec![
             InputCommand {
@@ -468,7 +468,7 @@ mod tests {
     }
     #[test]
     fn basic_group_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
                 kind: CommandType::Unknown,
@@ -507,7 +507,7 @@ mod tests {
     }
     #[test]
     fn basic_group_02() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
                 kind: CommandType::Unknown,
@@ -546,7 +546,7 @@ mod tests {
     }
     #[test]
     fn basic_group_03() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
         let input_1 = vec![
             InputCommand{
                 kind: CommandType::Unknown,
@@ -585,7 +585,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command("cat |");
@@ -594,7 +594,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_02() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command("| cat");
@@ -603,7 +603,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_03() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command("cat <");
@@ -612,7 +612,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_04() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command("cat >");
@@ -621,7 +621,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_05() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command(
@@ -632,7 +632,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_06() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command(
@@ -643,7 +643,7 @@ mod tests {
     }
     #[test]
     fn syntax_error_07() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let result = parser
             .parse_user_command(
@@ -654,7 +654,7 @@ mod tests {
     }
     #[test]
     fn whitespace_01() {
-        let parser = ShellParser::new();
+        let mut parser = ShellParser::new();
 
         let input = InputCommand {
             kind: CommandType::Unknown,
