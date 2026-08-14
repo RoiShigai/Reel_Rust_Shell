@@ -16,12 +16,9 @@ use crate::{
 use std::{
     ffi::{CString, OsStr},
     fmt,
-    fs::metadata,
     os::unix::{
         ffi::OsStrExt,
-        fs::PermissionsExt,
     },
-    path::{Path}
 };
 
 use nix::{
@@ -35,10 +32,9 @@ pub enum ExecError {
     FailedPipeCreation,
     InvalidPipeline,
     UnknownCommand,
-    NixErrno(Errno),
     IOError(std::io::Error),
     FileError(FileError),
-    ConfigError(ConfigError)
+    ConfigError(ConfigError),
 }
 
 impl fmt::Display for ExecError {
@@ -47,7 +43,6 @@ impl fmt::Display for ExecError {
             Self::FailedPipeCreation => write!(f, "Failed To Create Pipe"),
             Self::InvalidPipeline => write!(f, "Invalid Pipeline"),
             Self::UnknownCommand => write!(f, "Unknown Command Type"),
-            Self::NixErrno(error) => write!(f,"Nix Error during Execution: '{}'", error),
             Self::IOError(error) => write!(f, "StdIO Error during Execution: '{}'", error),
             Self::FileError(error) => write!(f, "FileError during execution: {}", error),
             Self::ConfigError(k) => write!(f, "ConfigError: '{}'", k),
@@ -73,18 +68,12 @@ impl From<FileError> for ExecError {
     }
 }
 
+impl std::error::Error for ExecError {}
+
 impl From<std::io::Error> for ExecError {
     fn from(error: std::io::Error) -> Self {
         ExecError::IOError(error)
     }
-}
-
-fn is_executable(file: &Path) -> bool {
-    let metadata = match metadata(file) {
-        Ok(metadata) => metadata,
-        Err(_) => return false,
-    };
-    metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
 }
 
 fn check_builtin(command: &OsStr) -> CommandType {
@@ -154,7 +143,7 @@ fn exec_child(
             std::process::exit(1);
         }
     };
-    execve(&c_exec,&command.argv(),&c_env);
+    let _ = execve(&c_exec,&command.argv(),&c_env);
     unreachable!();
 }
 
@@ -176,7 +165,10 @@ fn exec_command(
                 ForkResult::Child => exec_child(env, command, streams, index),
             }
         }
-        _ => {Err(ExecError::UnknownCommand)}
+        _ => {
+            println!("{:?}", command.kind);
+            Err(ExecError::UnknownCommand)
+        }
     }
 }
 
@@ -204,9 +196,9 @@ fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, ExecErr
     Ok(last_status)
 }
 
-fn execute_pipeline(
+pub fn execute_pipeline(
     env:&mut ShellConfig,
-    command_list: &mut Vec<CommandGroup>) -> Result<(), ExecError> {
+    command_list: &mut Vec<CommandGroup>) -> Result<i32, ExecError> {
     let mut last_status: i32 = 0;
 
     resolve_path(env ,command_list)?;
@@ -225,5 +217,5 @@ fn execute_pipeline(
             last_status = exec_group(env, group)?;
         }
     }
-    Ok(())
+    Ok(last_status)
 }

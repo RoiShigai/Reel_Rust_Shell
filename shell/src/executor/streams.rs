@@ -48,16 +48,16 @@ pub fn setup_stdout(
     match output {
         Output::Pipe => {
             let pipe = &streams[index];
-            dup2_stdout(pipe.write.as_fd());
+            let _ = dup2_stdout(pipe.write.as_fd());
         },
         Output::Inherit => {},
         Output::File(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Write)?;
-            dup2_stdout(fd);
+            let _ = dup2_stdout(fd);
         },
         Output::AppendFile(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Append)?;
-            dup2_stdout(fd);
+            let _ = dup2_stdout(fd);
         },
     };
     Ok(())
@@ -71,12 +71,12 @@ pub fn setup_stdin(
     match input {
         Input::Pipe => {
             let pipe = &streams[index - 1];
-            dup2_stdin(pipe.read.as_fd());
+            let _ = dup2_stdin(pipe.read.as_fd());
         },
         Input::Inherit => {},
         Input::File(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Read)?;
-            dup2_stdin(fd);
+            let _ = dup2_stdin(fd);
         },
     };
     Ok(())

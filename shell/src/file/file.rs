@@ -1,8 +1,11 @@
 use std::{
-    fs::File,
+    fs::{File, metadata},
     io,
-    os::fd::OwnedFd,
-    path::PathBuf,
+    os::{
+        fd::OwnedFd,
+        unix::fs::PermissionsExt
+    },
+    path::{Path, PathBuf},
     fmt,
 };
 
@@ -30,6 +33,14 @@ impl fmt::Display for FileError {
             Self::IOError(error) => write!(f, "File IOError: {}", error),
         }
     }
+}
+
+pub fn is_executable(file: &Path) -> bool {
+    let metadata = match metadata(file) {
+        Ok(metadata) => metadata,
+        Err(_) => return false,
+    };
+    metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
 }
 
 pub fn open_file(path: PathBuf, mode: FileMode) -> Result<OwnedFd, FileError> {

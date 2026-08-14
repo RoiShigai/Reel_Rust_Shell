@@ -5,6 +5,7 @@ use std::{
     error::Error,
     os::unix::ffi::OsStrExt,
 };
+ use crate::file::file::is_executable;
 
 pub struct ShellConfig {
     env: HashMap<OsString, OsString>,
@@ -47,7 +48,7 @@ impl ShellConfig {
             Ok(path) => {
                 for directory in std::env::split_paths(path) {
                     let candidate = directory.join(program_name);
-                    if candidate.is_file() {
+                    if is_executable(&candidate) {
                         return Ok(OsString::from(candidate));
                     }
                 }
