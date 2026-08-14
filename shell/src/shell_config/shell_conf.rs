@@ -11,12 +11,12 @@ pub struct ShellConfig {
 }
 
 #[derive(Debug)]
-pub enum ConfigError<'a> {
-    EnvKeyNotFound(&'a str),
+pub enum ConfigError {
+    EnvKeyNotFound(String),
     CommandNotFound,
 }
 
-impl fmt::Display for ConfigError<'_> {
+impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConfigError::EnvKeyNotFound(k) => write!(f, "Config Error: '{}' not found in Env", k),
@@ -25,7 +25,7 @@ impl fmt::Display for ConfigError<'_> {
     }
 }
 
-impl Error for ConfigError<'_> {
+impl Error for ConfigError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             ConfigError::CommandNotFound => Some(&ConfigError::CommandNotFound),
@@ -42,7 +42,7 @@ impl ShellConfig {
         }        
     }
 
-    pub fn build_path(&self, program_name: &OsStr) -> Result<OsString, ConfigError<'_>> {
+    pub fn build_path(&self, program_name: &OsStr) -> Result<OsString, ConfigError> {
         match self.return_exec_path() {
             Ok(path) => {
                 for directory in std::env::split_paths(path) {
@@ -57,10 +57,10 @@ impl ShellConfig {
         }
     }
 
-    pub fn return_exec_path(&self) -> Result<&OsString, ConfigError<'_>> {
+    pub fn return_exec_path(&self) -> Result<&OsString, ConfigError> {
         match self.env.get(&OsString::from("PATH")) {
             Some(path) => Ok(path),
-            None => Err(ConfigError::EnvKeyNotFound("PATH".into())),
+            None => Err(ConfigError::EnvKeyNotFound(String::from("PATH"))),
         }
     }
 

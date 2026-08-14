@@ -1,7 +1,6 @@
 use crate::parser::{
     lexer::{ShellLexer, Token},
     commands::{
-        CommandType,
         CommandGroup,
         InputCommand,
         Input,

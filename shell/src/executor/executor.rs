@@ -14,7 +14,6 @@ use crate::{
 };
 
 use std::{
-    error::Error,
     ffi::{CString, OsStr},
     fmt,
     fs::metadata,
@@ -39,6 +38,7 @@ pub enum ExecError {
     NixErrno(Errno),
     IOError(std::io::Error),
     FileError(FileError),
+    ConfigError(ConfigError)
 }
 
 impl fmt::Display for ExecError {
@@ -49,8 +49,8 @@ impl fmt::Display for ExecError {
             Self::UnknownCommand => write!(f, "Unknown Command Type"),
             Self::NixErrno(error) => write!(f,"Nix Error during Execution: '{}'", error),
             Self::IOError(error) => write!(f, "StdIO Error during Execution: '{}'", error),
-            Self::StdError(error) => write!(f, "StdError during Execution: '{}'", error),
-            Self::FileError(error) => write!(f, "FileError during execution: {}", error)
+            Self::FileError(error) => write!(f, "FileError during execution: {}", error),
+            Self::ConfigError(k) => write!(f, "ConfigError: '{}'", k),
         }
     }
 }
@@ -61,15 +61,21 @@ impl From<Errno> for ExecError {
     }
 }
 
+impl From<ConfigError> for ExecError {
+    fn from(error: ConfigError) -> Self {
+            ExecError::ConfigError(error)
+    }
+}
+
 impl From<FileError> for ExecError {
     fn from(_: FileError) -> Self {
         ExecError::FileError(FileError::PathError)
     }
 }
 
-impl From<&dyn Error> for ExecError {
-    fn from(value: &dyn Error) -> Self {
-        ExecError::FailedPipeCreation
+impl From<std::io::Error> for ExecError {
+    fn from(error: std::io::Error) -> Self {
+        ExecError::IOError(error)
     }
 }
 
@@ -94,7 +100,7 @@ fn check_builtin(command: &OsStr) -> CommandType {
 
 fn resolve_path(
     shell_config: &ShellConfig,
-    command_list: &mut Vec<CommandGroup>) -> Result<(), ConfigError<'_>> {
+    command_list: &mut Vec<CommandGroup>) -> Result<(), ConfigError> {
     for commandgroup in command_list {
         for input_command in &mut commandgroup.command {
             input_command.kind = check_builtin(&input_command.program);
@@ -174,7 +180,7 @@ fn exec_command(
     }
 }
 
-fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, Box<dyn Error>> {
+fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, ExecError> {
     let streams = create_streams(group)?;
     let mut children = Vec::new();
     let mut last_status: i32 = 0;
@@ -200,7 +206,7 @@ fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, Box<dyn
 
 fn execute_pipeline(
     env:&mut ShellConfig,
-    command_list: &mut Vec<CommandGroup>) -> Result<(), Box<dyn Error + '_>> {
+    command_list: &mut Vec<CommandGroup>) -> Result<(), ExecError> {
     let mut last_status: i32 = 0;
 
     resolve_path(env ,command_list)?;
