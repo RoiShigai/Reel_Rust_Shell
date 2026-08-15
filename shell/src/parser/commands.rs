@@ -91,8 +91,4 @@ impl InputCommand {
             .map(|arg| CString::new(arg.as_os_str().as_encoded_bytes()))
             .collect()
     }
-
-    pub fn get_exec(&self) -> &OsString {
-        &self.args[0]
-    }
 }

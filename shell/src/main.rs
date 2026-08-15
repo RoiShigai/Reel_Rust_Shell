@@ -25,6 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
                 1
             }
         };
+        parser.reset();
         println!("return value: {}", return_value);
     }
 }
