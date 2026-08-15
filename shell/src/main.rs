@@ -25,5 +25,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
                 1
             }
         };
+        println!("return value: {}", return_value);
     }
 }

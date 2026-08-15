@@ -136,7 +136,6 @@ fn exec_child(
             std::process::exit(1);
         }
     };
-
     let c_exec = match CString::new(
         command.program.as_os_str().as_bytes()
     ) {
@@ -146,9 +145,6 @@ fn exec_child(
             std::process::exit(1);
         }
     };
-    println!("Child - Exec");
-    println!("command: {:?}", command.program);
-    println!("argv: {:?}", command.argv());
     let argv = match command.argv() {
             Ok(argv) => argv,
             Err(error) => {
@@ -167,7 +163,6 @@ fn exec_child(
                 std::process::exit(127);
             }
         };
-    unreachable!();
 }
 
 fn exec_command(
