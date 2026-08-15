@@ -214,11 +214,18 @@ fn exec_group(env:&mut ShellConfig, group: &CommandGroup) -> Result<i32, ExecErr
     Ok(last_status)
 }
 
+fn debug_print_commandlist(command_list: &mut Vec<CommandGroup>) {
+    for command in command_list {
+        println!("command group: {:?}", command);
+    }
+}
+
 pub fn execute_pipeline(
     env:&mut ShellConfig,
     command_list: &mut Vec<CommandGroup>) -> Result<i32, ExecError> {
     let mut last_status: i32 = 0;
 
+    debug_print_commandlist(command_list);
     resolve_path(env ,command_list)?;
     for group in command_list {
         let should_exec = match group.next {

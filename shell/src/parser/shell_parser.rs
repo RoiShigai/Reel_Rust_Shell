@@ -165,6 +165,7 @@ impl ShellParser {
         }
         commandgroup.add_command(command);
         command_lst.push(commandgroup);
+        self.state = ParserState::Command;
         Ok(command_lst)
     }
 }
