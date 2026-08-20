@@ -3,6 +3,7 @@ mod parser;
 mod file;
 mod shell_config;
 mod executor;
+mod builtin;
 use crate::{
     parser::shell_parser::ShellParser,
     shell_config::shell_conf::ShellConfig,

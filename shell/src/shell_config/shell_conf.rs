@@ -58,6 +58,10 @@ impl ShellConfig {
         }
     }
 
+    pub fn get_env(&mut self) -> &mut HashMap<OsString, OsString> {
+        &mut self.env
+    }
+
     pub fn return_exec_path(&self) -> Result<&OsString, ConfigError> {
         match self.env.get(&OsString::from("PATH")) {
             Some(path) => Ok(path),

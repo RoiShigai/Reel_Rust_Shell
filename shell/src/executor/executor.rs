@@ -11,10 +11,11 @@ use crate::{
         ConfigError,
         ShellConfig
     },
+    builtin::{cd},
 };
 
 use std::{
-    ffi::{CString, OsStr},
+    ffi::{CString, OsStr, OsString},
     fmt,
     os::unix::{
         ffi::OsStrExt,
@@ -35,6 +36,7 @@ pub enum ExecError {
     IOError(std::io::Error),
     FileError(FileError),
     ConfigError(ConfigError),
+    ArgError(String)
 }
 
 impl fmt::Display for ExecError {
@@ -46,6 +48,7 @@ impl fmt::Display for ExecError {
             Self::IOError(error) => write!(f, "StdIO Error during Execution: '{}'", error),
             Self::FileError(error) => write!(f, "FileError during execution: {}", error),
             Self::ConfigError(k) => write!(f, "ConfigError: '{}'", k),
+            Self::ArgError(arg) => write!(f, "Argument Error: '{:?}'", arg),
         }
     }
 }
