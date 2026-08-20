@@ -4,14 +4,14 @@ use crate::parser::commands::{CommandGroup, Input, Output};
 use crate::shell_config::shell_conf::ShellConfig;
 use crate::file::file::open_file;
 
-use std::os::fd::{AsFd, OwnedFd};
+use std::os::fd::{AsFd, OwnedFd, AsRawFd};
 use nix::{
-    unistd::{pipe, dup2_stdin, dup2_stdout},
+    unistd::{pipe, dup2_stdin, dup2_stdout, close},
 };
 
 pub struct CommandPipe {
-    read: OwnedFd,
-    write: OwnedFd,
+    pub read: OwnedFd,
+    pub write: OwnedFd,
 }
 
 pub fn create_streams(groups: &CommandGroup) -> Result<Vec<CommandPipe>, ExecError>{
@@ -53,13 +53,24 @@ pub fn setup_stdout(
         Output::Inherit => {},
         Output::File(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Write)?;
-            dup2_stdout(fd)?;
+            dup2_stdout(&fd)?;
+            drop(fd);
         },
         Output::AppendFile(path) => {
             let fd = open_file(path.to_path_buf(), FileMode::Append)?;
-            dup2_stdout(fd)?;
+            dup2_stdout(&fd)?;
+            drop(fd);
         },
     };
+    Ok(())
+}
+
+
+pub fn close_all_pipes(streams: &Vec<CommandPipe>) -> Result<(), ExecError> {
+    for pipe in streams {
+        close(pipe.read.as_raw_fd())?;
+        close(pipe.write.as_raw_fd())?;
+    }
     Ok(())
 }
 
@@ -75,9 +86,9 @@ pub fn setup_stdin(
         },
         Input::Inherit => {},
         Input::File(path) => {
-            println!("Streams Stdin File");
             let fd = open_file(path.to_path_buf(), FileMode::Read)?;
-            dup2_stdin(fd)?;
+            dup2_stdin(&fd)?;
+            drop(fd);
         },
     };
     Ok(())

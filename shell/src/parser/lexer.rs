@@ -1,5 +1,6 @@
 pub struct ShellLexer;
 
+#[derive(Debug)]
 pub enum Token<'a>{
     Word(&'a str),
     FileIN,

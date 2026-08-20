@@ -76,6 +76,7 @@ impl ShellParser {
         let mut command_lst = Vec::new();
         let mut commandgroup = CommandGroup::new();
         let mut command = InputCommand::new();
+        println!("tokens: {:?}", tokens);
         for token in tokens {
             match (&self.state, token) {
                 (ParserState::Command, Token::Word(word)) => {

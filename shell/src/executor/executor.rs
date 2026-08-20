@@ -1,5 +1,5 @@
 use crate::{
-    executor::streams::{create_streams, setup_stdin, setup_stdout, CommandPipe},
+    executor::streams::{create_streams, setup_stdin, setup_stdout, CommandPipe, close_all_pipes},
     file::file::FileError,
     parser::commands::{
         CommandGroup,
@@ -121,14 +121,16 @@ fn exec_child(
         eprintln!("stdin setup failed: {error}");
         std::process::exit(1);
     }
-
     if let Err(error) =
         setup_stdout(env, &command.stdout, streams, index)
     {
         eprintln!("stdout setup failed: {error}");
         std::process::exit(1);
     }
-
+    match close_all_pipes(streams) {
+        Ok(_) => println!("fd succesfully closed"),
+        Err(_) => println!("failed to closed all the pipes")
+    }
     let c_env = match env.get_c_env() {
         Ok(value) => value,
         Err(error) => {
@@ -152,6 +154,7 @@ fn exec_child(
                 std::process::exit(1);
             }
         };
+    println!("argv: {:?}", argv);
     match execve(&c_exec, &argv, &c_env) {
             Ok(never) => match never {},
             Err(error) => {
