@@ -31,6 +31,10 @@ fn set_home(config: &mut ShellConfig) -> Result<(), ExecError> {
     Ok(())
 }
 
+fn set_path(args: Vec<OsString>, config: &mut ShellConfig) -> Result<(), ExecError> {
+    Ok(())
+}
+
 
 pub fn change_directory(
     config: &mut ShellConfig,
@@ -38,6 +42,7 @@ pub fn change_directory(
     match args.len() {
         0 => set_home(config)?,
         1 => set_path(args, config)?,
-        _ => Err(ExecError::ArgError(String::from("cd: Too many arguments")))
+        _ => return Err(ExecError::ArgError(String::from("cd: Too many arguments"))),
     };
+    Ok(())
 }

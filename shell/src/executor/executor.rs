@@ -15,7 +15,7 @@ use crate::{
 };
 
 use std::{
-    ffi::{CString, OsStr, OsString},
+    ffi::{CString, OsStr},
     fmt,
     os::unix::{
         ffi::OsStrExt,
